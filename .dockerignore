@@ -1,0 +1,12 @@
+.git
+.github
+.env*
+deploy/secrets/*
+backups
+docs
+*.md
+Makefile
+*.out
+*.test
+bin
+cinema-api
