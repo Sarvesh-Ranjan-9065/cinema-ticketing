@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cinema_db}
+      POSTGRES_USER: ${POSTGRES_USER:-cinema_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: cinema-api:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      HOLD_TTL: ${HOLD_TTL:-120s}
+      DATABASE_URL: postgres://${POSTGRES_USER:-cinema_user}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-cinema_db}?sslmode=disable
+    ports:
+      - "${HOST_PORT:-8080}:8080"
+    networks:
+      - internal
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  db_data:
+
+networks:
+  internal:
