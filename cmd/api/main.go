@@ -16,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"cinema-ticketing/internal/booking"
 	"cinema-ticketing/internal/config"
 	"cinema-ticketing/internal/health"
 	"cinema-ticketing/internal/httpapi"
@@ -82,7 +83,7 @@ func runServe() error {
 		slog.Duration("hold_ttl", cfg.HoldTTL),
 	)
 
-	// Attempt connection to database for readiness checks
+	// Attempt connection to database
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -96,14 +97,25 @@ func runServe() error {
 	}
 
 	var pinger health.Pinger
+	var bookingSvc *booking.Service
 	if db != nil {
 		pinger = db
+		bookingSvc = booking.NewService(db.Pool())
+	}
+
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+
+	if bookingSvc != nil {
+		go runCleanupWorker(workerCtx, bookingSvc, logger)
 	}
 
 	healthSvc := health.New(pinger)
 	router := httpapi.NewRouter(httpapi.RouterConfig{
-		Logger: logger,
-		Health: healthSvc,
+		Logger:  logger,
+		Health:  healthSvc,
+		Booking: bookingSvc,
+		HoldTTL: cfg.HoldTTL,
 	})
 
 	addr := net.JoinHostPort(cfg.HTTPHost, fmt.Sprintf("%d", cfg.HTTPPort))
@@ -133,6 +145,7 @@ func runServe() error {
 	case sig := <-shutdownSig:
 		logger.Info("shutdown signal received; draining traffic", slog.String("signal", sig.String()))
 		healthSvc.SetShuttingDown()
+		workerCancel()
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer shutdownCancel()
@@ -142,6 +155,25 @@ func runServe() error {
 		}
 		logger.Info("graceful shutdown complete")
 		return nil
+	}
+}
+
+func runCleanupWorker(ctx context.Context, svc *booking.Service, logger *slog.Logger) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			count, err := svc.CleanupExpiredHolds(ctx)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				logger.Warn("cleanup worker error", slog.String("error", err.Error()))
+			} else if count > 0 {
+				logger.Info("cleanup worker expired stale holds", slog.Int64("count", count))
+			}
+		}
 	}
 }
 
@@ -175,12 +207,39 @@ func runHealthcheck() error {
 }
 
 func runMigrate() error {
-	fmt.Println("migration subsystem ready")
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	if err := store.MigrateUp(cfg.DatabaseURL); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
+	}
+
+	fmt.Println("migrations applied successfully")
 	return nil
 }
 
 func runSeed() error {
-	fmt.Println("seed subsystem ready")
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	db, err := store.Open(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed connecting to database: %w", err)
+	}
+	defer db.Close()
+
+	if err := db.Seed(ctx); err != nil {
+		return fmt.Errorf("seed failed: %w", err)
+	}
+
+	fmt.Println("seed completed successfully")
 	return nil
 }
 

@@ -68,12 +68,19 @@ func TestRunServe_ConfigError(t *testing.T) {
 	}
 }
 
-func TestRunMigrateAndSeed(t *testing.T) {
-	if err := runMigrate(); err != nil {
-		t.Fatalf("expected runMigrate to return nil, got: %v", err)
+func TestRunMigrate_ConfigError(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL_FILE", "")
+	if err := runMigrate(); err == nil {
+		t.Fatal("expected error on missing config, got nil")
 	}
-	if err := runSeed(); err != nil {
-		t.Fatalf("expected runSeed to return nil, got: %v", err)
+}
+
+func TestRunSeed_ConfigError(t *testing.T) {
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL_FILE", "")
+	if err := runSeed(); err == nil {
+		t.Fatal("expected error on missing config, got nil")
 	}
 }
 

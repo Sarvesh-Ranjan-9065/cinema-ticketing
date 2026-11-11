@@ -24,6 +24,44 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  migrate:
+    image: cinema-api:local
+    restart: "no"
+    command: ["migrate"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-cinema_user}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-cinema_db}?sslmode=disable
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  seed:
+    image: cinema-api:local
+    restart: "no"
+    command: ["seed"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-cinema_user}:${POSTGRES_PASSWORD:-change_me}@db:5432/${POSTGRES_DB:-cinema_db}?sslmode=disable
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build:
       context: ..
@@ -31,8 +69,8 @@ services:
     image: cinema-api:local
     restart: unless-stopped
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       HTTP_HOST: 0.0.0.0
       HTTP_PORT: 8080
