@@ -19,7 +19,7 @@ api_curl() {
 # 1. Healthz probe
 echo "[1/6] Checking /healthz liveness probe..."
 HEALTH_RESP="$(api_curl "${BASE_URL}/healthz")"
-if ! echo "${HEALTH_RESP}" | grep -q '"status":"ok"'; then
+if ! grep -q '"status":"ok"' <<< "${HEALTH_RESP}"; then
   echo "FAIL: /healthz unexpected response: ${HEALTH_RESP}"
   exit 1
 fi
@@ -28,7 +28,7 @@ echo "PASS: /healthz is live."
 # 2. Readyz probe
 echo "[2/6] Checking /readyz readiness probe..."
 READY_RESP="$(api_curl "${BASE_URL}/readyz")"
-if ! echo "${READY_RESP}" | grep -q '"status":"ok"'; then
+if ! grep -q '"status":"ok"' <<< "${READY_RESP}"; then
   echo "FAIL: /readyz unexpected response: ${READY_RESP}"
   exit 1
 fi
@@ -70,7 +70,7 @@ echo "PASS: Confirmed reservation with ticket: ${TICKET_ID}"
 # 6. Cancel reservation
 echo "[6/6] Cancelling reservation to free seat..."
 CANCEL_RESP="$(api_curl -X POST "${BASE_URL}/v1/reservations/${RES_ID}/cancel")"
-if ! echo "${CANCEL_RESP}" | grep -q '"status":"CANCELLED"'; then
+if ! grep -q '"status":"CANCELLED"' <<< "${CANCEL_RESP}"; then
   echo "FAIL: Failed to cancel reservation: ${CANCEL_RESP}"
   exit 1
 fi

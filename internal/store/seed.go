@@ -52,9 +52,9 @@ func (d *DB) Seed(ctx context.Context) error {
 			return fmt.Errorf("failed checking show existence: %w", err)
 		}
 
+		offsetSeconds := int(s.OffsetFromNow.Seconds())
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Insert new show with future starts_at relative to database now()
-			offsetSeconds := int(s.OffsetFromNow.Seconds())
 			insertShowQuery := fmt.Sprintf(
 				`INSERT INTO shows (title, hall, starts_at)
 				 VALUES ($1, $2, now() + interval '%d seconds')
@@ -64,6 +64,17 @@ func (d *DB) Seed(ctx context.Context) error {
 
 			if err := tx.QueryRow(ctx, insertShowQuery, s.Title, s.Hall).Scan(&showID); err != nil {
 				return fmt.Errorf("failed to insert seed show %q: %w", s.Title, err)
+			}
+		} else {
+			// If existing seed show has already started, refresh starts_at into the future
+			updateShowQuery := fmt.Sprintf(
+				`UPDATE shows
+				 SET starts_at = now() + interval '%d seconds'
+				 WHERE id = $1 AND starts_at <= now()`,
+				offsetSeconds,
+			)
+			if _, err := tx.Exec(ctx, updateShowQuery, showID); err != nil {
+				return fmt.Errorf("failed refreshing starts_at for show %q: %w", s.Title, err)
 			}
 		}
 

@@ -1,6 +1,6 @@
 module cinema-ticketing
 
-go 1.25.11
+go 1.27.4
 
 require (
 	github.com/golang-migrate/migrate/v4 v4.20.1

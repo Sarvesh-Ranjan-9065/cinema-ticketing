@@ -27,6 +27,7 @@ func (s *Service) ListShows(ctx context.Context) ([]Show, error) {
 	rows, err := s.pool.Query(ctx,
 		`SELECT id, title, hall, starts_at, created_at
 		 FROM shows
+		 WHERE starts_at > now()
 		 ORDER BY starts_at ASC`,
 	)
 	if err != nil {

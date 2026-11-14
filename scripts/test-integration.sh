@@ -8,9 +8,9 @@ set -euo pipefail
 CONTAINER_NAME="cinema-test-postgres"
 DB_PORT="5432"
 DB_USER="test_user"
-DB_PASSWORD="test_password"
+DB_PASS="test_pass"
 DB_NAME="cinema_test_db"
-TEST_URL="postgres://${DB_USER}:${DB_PASSWORD}@127.0.0.1:${DB_PORT}/${DB_NAME}?sslmode=disable"
+TEST_URL="postgres://${DB_USER}:${DB_PASS}@127.0.0.1:${DB_PORT}/${DB_NAME}?sslmode=disable"
 
 cleanup() {
   echo "Cleaning up temporary test database container..."
@@ -23,7 +23,7 @@ docker run -d --rm \
   --name "${CONTAINER_NAME}" \
   -e POSTGRES_DB="${DB_NAME}" \
   -e POSTGRES_USER="${DB_USER}" \
-  -e POSTGRES_PASSWORD="${DB_PASSWORD}" \
+  -e POSTGRES_PASSWORD="${DB_PASS}" \
   -p "${DB_PORT}:5432" \
   postgres:16-alpine >/dev/null
 

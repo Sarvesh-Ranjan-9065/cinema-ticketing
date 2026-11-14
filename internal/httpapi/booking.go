@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
 
 	"cinema-ticketing/internal/booking"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var (
@@ -39,7 +41,7 @@ func handleListShows(svc BookingService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		shows, err := svc.ListShows(r.Context())
 		if err != nil {
-			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list shows")
+			mapDomainError(w, r, err)
 			return
 		}
 		if shows == nil {
@@ -193,8 +195,29 @@ func handleCancelReservation(svc BookingService) http.HandlerFunc {
 	}
 }
 
+func isDependencyUnavailable(err error) bool {
+	if err == nil {
+		return false
+	}
+	var connErr *pgconn.ConnectError
+	if errors.As(err, &connErr) {
+		return true
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	return errors.Is(err, context.DeadlineExceeded)
+}
+
 func mapDomainError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case isDependencyUnavailable(err):
+		writeError(w, r, http.StatusServiceUnavailable, "DEPENDENCY_UNAVAILABLE", "Database service is temporarily unavailable")
 	case errors.Is(err, booking.ErrNotFound):
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND", err.Error())
 	case errors.Is(err, booking.ErrSeatTaken):
