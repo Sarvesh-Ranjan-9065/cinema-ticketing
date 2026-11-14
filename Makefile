@@ -1,7 +1,8 @@
-.PHONY: all fmt vet lint test test-race build clean up down docker-build
+.PHONY: all fmt vet lint test test-race test-integration build clean up down docker-build
 
 BINARY_NAME=cinema-api
 BIN_DIR=bin
+TEST_DATABASE_URL ?= postgres://cinema_user:change_me@127.0.0.1:5432/cinema_db?sslmode=disable
 
 all: build
 
@@ -19,6 +20,9 @@ test:
 
 test-race:
 	go test -v -race ./...
+
+test-integration:
+	./scripts/test-integration.sh
 
 build:
 	mkdir -p $(BIN_DIR)

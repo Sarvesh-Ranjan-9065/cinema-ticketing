@@ -1,0 +1,125 @@
+=== RUN   TestPrintUsage
+Usage: cinema-api <command>
+
+Commands:
+  serve        Start the HTTP API server (default)
+  healthcheck  Probe the local service liveness endpoint
+  migrate      Execute database migrations
+  seed         Seed the database with initial shows and seats
+--- PASS: TestPrintUsage (0.00s)
+=== RUN   TestSetupLogger
+--- PASS: TestSetupLogger (0.00s)
+=== RUN   TestRunHealthcheck_Success
+--- PASS: TestRunHealthcheck_Success (0.00s)
+=== RUN   TestRunHealthcheck_Failure
+--- PASS: TestRunHealthcheck_Failure (0.00s)
+=== RUN   TestRunServe_ConfigError
+--- PASS: TestRunServe_ConfigError (0.00s)
+=== RUN   TestRunMigrate_ConfigError
+--- PASS: TestRunMigrate_ConfigError (0.00s)
+=== RUN   TestRunSeed_ConfigError
+--- PASS: TestRunSeed_ConfigError (0.00s)
+=== RUN   TestRunHealthcheck_UnreachablePort
+--- PASS: TestRunHealthcheck_UnreachablePort (0.00s)
+=== RUN   TestRunServe_InvalidSecretFile
+--- PASS: TestRunServe_InvalidSecretFile (0.00s)
+PASS
+ok  	cinema-ticketing/cmd/api	(cached)
+=== RUN   TestGenerateTicketID
+--- PASS: TestGenerateTicketID (0.00s)
+=== RUN   TestModelStatusConstants
+--- PASS: TestModelStatusConstants (0.00s)
+=== RUN   TestConcurrency_50SimultaneousHolds
+--- PASS: TestConcurrency_50SimultaneousHolds (0.17s)
+=== RUN   TestConcurrency_DistinctSeats
+--- PASS: TestConcurrency_DistinctSeats (0.11s)
+=== RUN   TestConcurrency_ConfirmRacingCancel
+    concurrency_test.go:276: Race outcome: status=CANCELLED, confirmWon=false (err=invalid reservation state transition: cannot confirm a cancelled reservation), cancelWon=true (err=<nil>)
+--- PASS: TestConcurrency_ConfirmRacingCancel (0.07s)
+=== RUN   TestConcurrency_DuplicateConfirms
+--- PASS: TestConcurrency_DuplicateConfirms (0.07s)
+=== RUN   TestIntegration_HoldConfirmCancelFlow
+--- PASS: TestIntegration_HoldConfirmCancelFlow (0.07s)
+=== RUN   TestIntegration_ExpiredHoldBehavior
+--- PASS: TestIntegration_ExpiredHoldBehavior (0.09s)
+=== RUN   TestIntegration_ShowAlreadyStarted
+--- PASS: TestIntegration_ShowAlreadyStarted (0.07s)
+PASS
+ok  	cinema-ticketing/internal/booking	(cached)
+=== RUN   TestLoad_Defaults
+--- PASS: TestLoad_Defaults (0.00s)
+=== RUN   TestLoad_CustomValidValues
+--- PASS: TestLoad_CustomValidValues (0.00s)
+=== RUN   TestLoad_SecretFileSupport
+--- PASS: TestLoad_SecretFileSupport (0.00s)
+=== RUN   TestLoad_SecretFileMissing
+--- PASS: TestLoad_SecretFileMissing (0.00s)
+=== RUN   TestLoad_AggregatesMultipleErrors
+--- PASS: TestLoad_AggregatesMultipleErrors (0.00s)
+PASS
+ok  	cinema-ticketing/internal/config	(cached)
+=== RUN   TestHealth_IsLive
+--- PASS: TestHealth_IsLive (0.00s)
+=== RUN   TestHealth_CheckReady
+=== RUN   TestHealth_CheckReady/nil_pinger_ready
+=== RUN   TestHealth_CheckReady/successful_pinger_ready
+=== RUN   TestHealth_CheckReady/failed_pinger_not_ready
+=== RUN   TestHealth_CheckReady/shutting_down_not_ready_even_if_pinger_passes
+--- PASS: TestHealth_CheckReady (0.00s)
+    --- PASS: TestHealth_CheckReady/nil_pinger_ready (0.00s)
+    --- PASS: TestHealth_CheckReady/successful_pinger_ready (0.00s)
+    --- PASS: TestHealth_CheckReady/failed_pinger_not_ready (0.00s)
+    --- PASS: TestHealth_CheckReady/shutting_down_not_ready_even_if_pinger_passes (0.00s)
+PASS
+ok  	cinema-ticketing/internal/health	(cached)
+=== RUN   TestListShows_Success
+--- PASS: TestListShows_Success (0.00s)
+=== RUN   TestGetShow_InvalidUUID
+--- PASS: TestGetShow_InvalidUUID (0.00s)
+=== RUN   TestCreateHold_ValidationErrors
+=== RUN   TestCreateHold_ValidationErrors/missing_content_type
+=== RUN   TestCreateHold_ValidationErrors/malformed_json
+=== RUN   TestCreateHold_ValidationErrors/non-uuid_show_id
+=== RUN   TestCreateHold_ValidationErrors/invalid_seat_label
+=== RUN   TestCreateHold_ValidationErrors/empty_customer_ref
+--- PASS: TestCreateHold_ValidationErrors (0.00s)
+    --- PASS: TestCreateHold_ValidationErrors/missing_content_type (0.00s)
+    --- PASS: TestCreateHold_ValidationErrors/malformed_json (0.00s)
+    --- PASS: TestCreateHold_ValidationErrors/non-uuid_show_id (0.00s)
+    --- PASS: TestCreateHold_ValidationErrors/invalid_seat_label (0.00s)
+    --- PASS: TestCreateHold_ValidationErrors/empty_customer_ref (0.00s)
+=== RUN   TestCreateHold_PayloadTooLarge
+--- PASS: TestCreateHold_PayloadTooLarge (0.00s)
+=== RUN   TestCreateHold_SeatTakenConflict
+--- PASS: TestCreateHold_SeatTakenConflict (0.00s)
+=== RUN   TestConfirmReservation_ExpiredHoldConflict
+--- PASS: TestConfirmReservation_ExpiredHoldConflict (0.00s)
+=== RUN   TestHealthz_Success
+--- PASS: TestHealthz_Success (0.00s)
+=== RUN   TestReadyz_Success
+--- PASS: TestReadyz_Success (0.00s)
+=== RUN   TestReadyz_Failure
+--- PASS: TestReadyz_Failure (0.00s)
+=== RUN   TestNotFound_Handler
+--- PASS: TestNotFound_Handler (0.00s)
+=== RUN   TestRequestIDMiddleware_PreservesExistingHeader
+--- PASS: TestRequestIDMiddleware_PreservesExistingHeader (0.00s)
+=== RUN   TestRequestIDMiddleware_GeneratesNewHeaderIfMissing
+--- PASS: TestRequestIDMiddleware_GeneratesNewHeaderIfMissing (0.00s)
+=== RUN   TestLoggingMiddleware_LogsStructuredJSON
+--- PASS: TestLoggingMiddleware_LogsStructuredJSON (0.00s)
+=== RUN   TestRecoveryMiddleware_CatchesPanic
+--- PASS: TestRecoveryMiddleware_CatchesPanic (0.00s)
+PASS
+ok  	cinema-ticketing/internal/httpapi	(cached)
+=== RUN   TestOpen_InvalidURL
+--- PASS: TestOpen_InvalidURL (0.00s)
+=== RUN   TestDB_PingNil
+--- PASS: TestDB_PingNil (0.00s)
+=== RUN   TestEnsurePgxScheme
+--- PASS: TestEnsurePgxScheme (0.00s)
+=== RUN   TestMigrateUp_InvalidURL
+--- PASS: TestMigrateUp_InvalidURL (0.00s)
+PASS
+ok  	cinema-ticketing/internal/store	(cached)
+?   	cinema-ticketing/migrations	[no test files]
