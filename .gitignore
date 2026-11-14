@@ -19,6 +19,7 @@ coverage.html
 !.env.example
 deploy/secrets/*
 !deploy/secrets/README.md
+deploy/.current_tag
 
 # Backups and database dumps
 backups/
@@ -34,4 +35,8 @@ backups/
 *~
 .DS_Store
 Thumbs.db
-docs/
+AGENTS.md
+docs/PLAN.md
+docs/EDGE_CASES.md
+docs/Main_Problem.md
+

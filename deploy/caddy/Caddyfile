@@ -1,0 +1,39 @@
+{
+	# Disable global telemetry
+	admin off
+	auto_https disable_redirects
+	default_sni localhost
+}
+
+# HTTP to HTTPS redirection
+:80 {
+	redir https://{host}{uri} permanent
+}
+
+# HTTPS endpoint with internal CA
+localhost, 127.0.0.1, :443 {
+	tls internal
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	request_body {
+		max_size 64KB
+	}
+
+	# Forward requests to internal API container
+	reverse_proxy api:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto https
+
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 15s
+		}
+	}
+}
