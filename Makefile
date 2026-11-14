@@ -1,4 +1,4 @@
-.PHONY: all fmt vet lint test test-race test-integration build clean up down docker-build
+.PHONY: all fmt vet lint test test-race test-integration ci-local build clean up down docker-build smoke backup demo
 
 BINARY_NAME=cinema-api
 BIN_DIR=bin
@@ -24,6 +24,9 @@ test-race:
 test-integration:
 	./scripts/test-integration.sh
 
+ci-local:
+	./scripts/ci-local.sh
+
 build:
 	mkdir -p $(BIN_DIR)
 	CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o $(BIN_DIR)/$(BINARY_NAME) ./cmd/api
@@ -39,3 +42,13 @@ up:
 
 down:
 	docker compose -f deploy/compose.yaml down
+
+smoke:
+	./scripts/smoke.sh
+
+backup:
+	./scripts/backup.sh
+
+demo:
+	./scripts/demo.sh
+
