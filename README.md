@@ -11,7 +11,7 @@ The primary design requirement is zero double-booking under high concurrency, en
 The platform consists of three decoupled services orchestrated by Docker Compose across isolated bridge networks:
 
 - **Reverse Proxy (`proxy`):** Caddy terminates HTTPS using an internal certificate authority, enforces host port isolation, and reverse-proxies inbound requests to the API.
-- **Application API (`api`):** A Go service built exclusively using the Go standard library (`net/http`, `log/slog`, `database/sql` with `pgx/v5`). Operates as a single multi-call binary with subcommands: `serve`, `healthcheck`, `migrate`, and `seed`.
+- **Application API (`api`):** A Go service built exclusively using the Go standard library (`net/http`, `log/slog`) with database driver `pgx/v5` (`pgxpool`). Operates as a single multi-call binary with subcommands: `serve`, `healthcheck`, `migrate`, and `seed`.
 - **Database (`db`):** PostgreSQL 16 enforcing relational constraints, transactional isolation, and partial unique indexes.
 
 Detailed architecture diagrams, sequence flows, and trade-off rationales are documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
@@ -20,19 +20,19 @@ Detailed architecture diagrams, sequence flows, and trade-off rationales are doc
                       +-------------------+
                       |   Client / curl   |
                       +---------+---------+
-                                | HTTPS :8443
+                                | HTTPS :443
                                 v
-                   [ public_net bridge network ]
+                   [ proxy_net bridge network ]
                    +---------------------------+
                    |       Caddy Proxy         |
                    | (Internal CA, TLS Term)   |
                    +-------------+-------------+
                                  | HTTP :8080
                                  v
-                  [ backend_net bridge network ]
+                  [ db_net bridge network ]
                   +----------------------------+
                   |       Cinema API (Go)      |
-                  |  (Non-root UID 10001,      |
+                  |  (Non-root UID 65532,      |
                   |   Cap drop ALL)            |
                   +--------------+-------------+
                                  | TCP :5432
@@ -75,7 +75,7 @@ Detailed architecture diagrams, sequence flows, and trade-off rationales are doc
 git clone <repository-url>
 cd cinema-ticketing
 
-# Generate local file-based Docker secrets with secure permissions (0600 / 0644)
+# Generate local file-based Docker secrets with secure read permissions (0644)
 ./scripts/init-secrets.sh
 ```
 
@@ -100,9 +100,9 @@ docker build -t cinema-api:local .
 
 | Service | Container Port | Host Port | Network | Purpose |
 |---|---|---|---|---|
-| `proxy` | 443 | 8443 | `public_net` | HTTPS public API ingress with local TLS termination. |
-| `api` | 8080 | Not published | `public_net`, `backend_net` | Internal HTTP application server. |
-| `db` | 5432 | Not published | `backend_net` | Internal PostgreSQL relational database. |
+| `proxy` | 443, 80 | 443, 80 | `proxy_net` | HTTPS public API ingress with local TLS termination (port 80 redirects to 443). |
+| `api` | 8080 | Not published | `proxy_net`, `db_net` | Internal HTTP application server. |
+| `db` | 5432 | Not published | `db_net` | Internal PostgreSQL relational database. |
 
 ---
 
@@ -113,8 +113,8 @@ Configuration values are defined in `.env` (or inherited from environment variab
 | Environment Variable | Default Value | Description |
 |---|---|---|
 | `HTTP_HOST` | `0.0.0.0` | Bind address for API HTTP server. |
-| `HTTP_PORT` | `8080` | Port for API HTTP server. |
-| `HOST_PORT` | `8443` | Host port exposed by Caddy reverse proxy for HTTPS traffic. |
+| `HTTP_PORT` | `8080` | Port for API HTTP server (inside container). |
+| `HTTPS_PORT` | `443` | Host port exposed by Caddy reverse proxy for HTTPS traffic. |
 | `LOG_LEVEL` | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARN`, `ERROR`). |
 | `HOLD_TTL` | `120s` | Duration for temporary seat holds. |
 | `DATABASE_URL` | *(empty)* | PostgreSQL connection URL string. |
@@ -191,10 +191,12 @@ Full request/response examples and error code definitions are in [`docs/API.md`]
 | `GET` | `/healthz` | Process liveness probe. | `200` |
 | `GET` | `/readyz` | Database connectivity readiness probe. | `200`, `503` |
 | `GET` | `/v1/shows` | List upcoming shows scheduled after `now()`. | `200` |
-| `GET` | `/v1/shows/{id}/seats` | Seat map with statuses (`AVAILABLE`, `HELD`, `CONFIRMED`). | `200`, `404` |
-| `POST` | `/v1/shows/{id}/reservations` | Create temporary 120-second hold on a single seat. | `201`, `400`, `404`, `409` |
-| `POST` | `/v1/reservations/{id}/confirm` | Confirm hold into ticket (idempotent). | `200`, `404`, `409` |
-| `POST` | `/v1/reservations/{id}/cancel` | Cancel reservation and release seat immediately. | `200`, `404` |
+| `GET` | `/v1/shows/{id}` | Show detail by identifier. | `200`, `400`, `404` |
+| `GET` | `/v1/shows/{id}/seats` | Seat map with statuses (`AVAILABLE`, `HELD`, `CONFIRMED`). | `200`, `400`, `404` |
+| `POST` | `/v1/reservations` | Create temporary 120-second hold on a single seat. | `201`, `400`, `404`, `409` |
+| `GET` | `/v1/reservations/{id}` | Reservation detail by identifier. | `200`, `400`, `404` |
+| `POST` | `/v1/reservations/{id}/confirm` | Confirm hold into ticket (idempotent). | `200`, `400`, `404`, `409` |
+| `POST` | `/v1/reservations/{id}/cancel` | Cancel reservation and release seat immediately. | `200`, `400`, `404`, `409` |
 
 ---
 
@@ -217,7 +219,7 @@ See [`docs/evidence/README.md`](docs/evidence/README.md) for detailed descriptio
 ## Known Limitations and Assumptions
 
 - **Single Seat per Reservation:** The API deliberately supports reserving one seat per transaction. Multi-seat shopping carts are out of scope.
-- **Fixed Hall Geometry:** Each show is modeled with a standard 50-seat grid (rows A through E, numbers 1 through 10). Dynamic auditorium geometry is not supported.
+- **Fixed Hall Geometry:** Each show is modeled with a standard 25-seat grid (rows A through E, numbers 1 through 5). Dynamic auditorium geometry is not supported.
 - **Simulated Identity and Billing:** User accounts, authentication headers, and payment gateway interactions are omitted by specification; customer references are arbitrary strings supplied by the client.
 - **Local TLS Certificate:** Caddy issues certificates via its internal CA. Clients connecting via `curl` must supply `-k` or trust the local root certificate generated in the `caddy_data` volume.
 

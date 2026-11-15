@@ -9,10 +9,10 @@ This runbook outlines operational procedures, failure response workflows, disast
 ### 1.1 Service Health Probes
 ```bash
 # Check liveness probe (does not hit the database)
-curl -k https://localhost:8443/healthz
+curl -k https://localhost/healthz
 
 # Check readiness probe (probes PostgreSQL connectivity)
-curl -k https://localhost:8443/readyz
+curl -k https://localhost/readyz
 ```
 
 ### 1.2 Inspect Container Status
@@ -162,8 +162,8 @@ The restore script automatically:
 |---|---|---|---|
 | HTTP 502 Bad Gateway on all requests | API container exited or listening on wrong port | `docker compose -f deploy/compose.yaml ps api` | Inspect `docker compose logs api`. Ensure container starts with command `serve` on port 8080. |
 | HTTP 503 `DEPENDENCY_UNAVAILABLE` on `/readyz` | PostgreSQL container unreachable or saturating connection pool | `docker compose -f deploy/compose.yaml exec db pg_isready -U cinema_user -d cinema_db` | Verify database container is running. Check connection pool limits (`DB_MAX_OPEN_CONNS`) and database logs. |
-| HTTP 409 `SEAT_ALREADY_RESERVED` | Another client created an active hold or confirmed booking on the seat | Query `/v1/shows/{id}/seats` to view seat status | This is standard concurrency protection. Select another available seat or await hold expiry. |
-| HTTP 409 `HOLD_EXPIRED` on confirmation | Hold expired prior to confirmation request submission | Compare `expires_at` in reservation with current database time (`SELECT now()`) | Re-hold the seat if still available; client must confirm within the configured hold TTL. |
+| HTTP 409 `SEAT_TAKEN` | Another client created an active hold or confirmed booking on the seat | Query `/v1/shows/{id}/seats` to view seat status | This is standard concurrency protection. Select another available seat or await hold expiry. |
+| HTTP 409 `HOLD_EXPIRED` on confirmation | Hold expired prior to confirmation request submission | Compare `hold_expires_at` in reservation with current database time (`SELECT now()`) | Re-hold the seat if still available; client must confirm within the configured hold TTL. |
 | Migration failure on startup | Locked migration table or unparseable migration SQL | `docker compose -f deploy/compose.yaml logs migrate` | Verify database accessibility and ensure migration filenames follow sequential numeric versioning. |
-| `permission denied` on secret files | Secret file permissions too restrictive for non-root user (UID 10001) | `ls -la deploy/secrets/` | Run `scripts/init-secrets.sh` to apply standard read permissions (`0644`). |
+| `permission denied` on secret files | Secret file permissions too restrictive for non-root user (UID 65532) | `ls -la deploy/secrets/` | Run `scripts/init-secrets.sh` to apply standard read permissions (`0644`). |
 | Missing disk space in Docker volume | Unbounded database logging or excessive dump accumulation | `df -h` and `docker system df` | Purge obsolete test backups from `backups/` or execute `docker system prune`. |

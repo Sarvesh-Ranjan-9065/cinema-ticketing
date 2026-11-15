@@ -21,13 +21,13 @@ Each file contains unedited command transcripts produced directly by the verific
 - What it proves:
   - Unit tests verify domain validation, hold expiration logic, cancellation rules, and HTTP error mappings.
   - Integration test runs against real PostgreSQL 16 with `-race` enabled.
-  - Start-barrier concurrency test launches 50 concurrent requests competing for the exact same seat on the same show. Exactly 1 request succeeds in creating the hold (HTTP 201), and the other 49 receive a conflict (HTTP 409 `SEAT_ALREADY_RESERVED`).
+  - Start-barrier concurrency test launches 50 concurrent requests competing for the exact same seat on the same show. Exactly 1 request succeeds in creating the hold (HTTP 201), and the other 49 receive a conflict (HTTP 409 `SEAT_TAKEN`).
   - Zero data races detected by Go race detector.
 
 ### Acceptance 2: Clean Environment Deployment
 - File: [`acceptance-2-deploy.txt`](./acceptance-2-deploy.txt)
 - What it proves:
-  - Secrets initialization via `scripts/init-secrets.sh` with secure file permissions (0600 / 0644).
+  - Secrets initialization via `scripts/init-secrets.sh` with secure read permissions (0644).
   - Database schema migrations executed transactionally using `golang-migrate`.
   - Database seed executed idempotently to populate upcoming shows and seats.
   - Multi-container Docker Compose stack (`db`, `api`, `proxy`) starts cleanly.
@@ -53,9 +53,9 @@ Each file contains unedited command transcripts produced directly by the verific
 ### Acceptance 4: Observability and Failure Drills
 - File: [`acceptance-4-drills.txt`](./acceptance-4-drills.txt)
 - What it proves:
-  - **Drill 1 (API Crash Recovery):** Simulates abrupt process death (`docker compose kill api`). The Caddy proxy returns HTTP 502 Bad Gateway during downtime. Docker restart policy brings the container back up within seconds. Data created before the crash is verified intact.
+  - **Drill 1 (API Crash Recovery):** Simulates abrupt process death (`docker compose kill api`). The Caddy proxy returns HTTP 502 Bad Gateway during downtime. The container is restored via `docker compose up -d --no-recreate api` and becomes healthy within seconds. Reservation data created before the crash is verified intact with zero data loss.
   - **Drill 2 (Database Outage Handling):** Database container is stopped. The `/healthz` liveness probe remains HTTP 200 (process is alive), while `/readyz` and business endpoints return HTTP 503 (`DEPENDENCY_UNAVAILABLE`). Once the database is restarted, the API automatically reconnects and resumes serving traffic without restarting the API process.
-  - **Drill 3 (Bad Release Rollback):** Deploys a deliberately broken container image tag (`cinema-api:broken-release`). The deployment health gate detects probe failures, aborts deployment, and automatically rolls back to the previous stable release tag, restoring normal service.
+  - **Drill 3 (Bad Release Rollback):** Deploys a deliberately broken container image tag (`cinema-api:broken-test-tag`). The deployment script detects failure during migration execution, aborts deployment, and automatically rolls back to the previous stable release tag, restoring normal service.
 
 ### Acceptance 5: Backup, Disaster Recovery, and Data Integrity
 - File: [`acceptance-5-restore.txt`](./acceptance-5-restore.txt)
